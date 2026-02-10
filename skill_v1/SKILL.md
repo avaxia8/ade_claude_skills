@@ -1,127 +1,51 @@
 ---
 name: landingai-ade
-description: Parse, extract, and analyze documents using LandingAI's ADE Python SDK. Handles PDFs and images with visual grounding, table extraction, and structured data output.
+description: Parse, extract, and analyze documents using LandingAI's ADE (Agentic Document Extraction). Use when the user wants to process PDFs, images, invoices, receipts, financial reports, contracts, or any document — converting them to structured data, extracting fields with schemas, classifying mixed document bundles, or working with table cell positions and visual grounding.
 ---
 
 # LandingAI ADE (Agentic Document Extraction)
 
-## Quick Start
-
-Parse a document and extract structured data in 3 steps:
-
-```python
-from landingai_ade import LandingAIADE
-from pydantic import BaseModel
-from pathlib import Path
-
-# 1. Initialize client (uses VISION_AGENT_API_KEY env var)
-client = LandingAIADE()
-
-# 2. Parse document to get markdown and chunks
-response = client.parse(document=Path("invoice.pdf"))
-
-# 3. Extract structured data with a schema
-class Invoice(BaseModel):
-    invoice_number: str
-    total_amount: float
-
-extracted = client.extract(
-    markdown=response.markdown,
-    schema=Invoice.model_json_schema()
-)
-
-print(f"Invoice #{extracted.extraction['invoice_number']}")
-print(f"Total: ${extracted.extraction['total_amount']}")
-```
-
 ## Core Workflow
 
-ADE follows a three-step workflow:
+ADE follows a three-step pipeline:
 
-1. **Parse** → Convert documents (PDF/images) to markdown with visual grounding
-2. **Split** (optional) → Classify mixed documents by type  
-3. **Extract** → Get structured data using schemas
+1. **Parse** — Convert documents (PDF/images) to markdown with visual grounding and bounding boxes
+2. **Split** *(optional)* — Classify pages in a mixed-document bundle by type (invoice, receipt, contract, etc.)
+3. **Extract** — Pull structured fields from markdown using a JSON schema
 
-### Visual Grounding
+Parse once, then split/extract as many times as needed against the cached markdown.
 
-Every piece of content is mapped to its exact location in the original document:
+## Choose Your Approach
 
-```python
-# Access location of any chunk
-chunk = response.chunks[0]
-print(f"Page: {chunk.grounding.page}")
-print(f"Position: {chunk.grounding.box}")  # Normalized 0-1 coordinates
-```
+| Approach | Best For | Setup |
+|----------|----------|-------|
+| **Direct API** (curl) | Shell scripts, CI/CD, language-agnostic | API key only |
+| **Python SDK** | Data pipelines, Pydantic schemas, async batch jobs | `pip install landingai-ade` |
+| **TypeScript SDK** | Web apps, Node services, Zod validation | `npm install landingai-ade` |
+| **MCP Tools** | Quick prototypes, small docs (< 5 pages) | Built into Claude — **100x higher token cost** |
+
+All approaches use the same API key: `export VISION_AGENT_API_KEY="v2_..."`
 
 ## Key Features
 
-- **Document Parsing**: PDFs and images to structured markdown
-- **Table Extraction**: Individual cell access with position data
-- **Visual Grounding**: Precise bounding boxes for all content
-- **Schema-based Extraction**: Use Pydantic models for structured output
-- **Async Support**: Process multiple documents concurrently
-- **Large File Handling**: Parse jobs API for documents >50MB
+- **Document Parsing** — PDFs and images to structured markdown with chunk types (text, table, figure, formula, list)
+- **Visual Grounding** — Normalized 0-1 bounding boxes mapping every chunk to its source location
+- **Table Cell Positions** — Row/col/rowspan/colspan for every cell in detected tables
+- **Schema-based Extraction** — Define JSON schemas (or Pydantic/Zod models) to pull structured fields
+- **Document Classification** — Split mixed bundles by document type with custom identifiers
+- **Large File Support** — Async parse jobs API for files > 50MB
 
-## Common Use Cases
+## Reference Docs
 
-### Parse with Page Splitting
-```python
-response = client.parse(
-    document=Path("document.pdf"),
-    split="page",  # Split by pages
-    save_to="./output"  # Save JSON output
-)
-```
+| File | Read when you need to... |
+|------|--------------------------|
+| **[API Specification](reference/API_SPEC.md)** | Look up request parameters, response structures, data types, error codes, or model versions — the single source of truth |
+| **[API Reference](reference/API_REFERENCE.md)** | Write curl commands, shell scripts, or jq filters for document processing |
+| **[Python Reference](reference/PYTHON_REFERENCE.md)** | Use the Python SDK — Pydantic schemas, async patterns, exception handling, save_to |
+| **[TypeScript Reference](reference/TYPESCRIPT_REFERENCE.md)** | Use the TypeScript SDK — type definitions, Zod integration, parse jobs, error types |
+| **[MCP Tools Reference](reference/MCP_REFERENCE.md)** | Call ADE directly from Claude via MCP tools — jq_filter optimization is critical |
 
-### Extract Tables with Cell Positions
-```python
-# Find specific cells in tables
-for gid, grounding in response.grounding.items():
-    if grounding.type == "tableCell":
-        pos = grounding.position
-        print(f"Cell at row {pos.row}, col {pos.col}")
-```
+## External Links
 
-### Handle Large Files
-```python
-# Use parse jobs for files >50MB
-job = client.parse_jobs.create(document=Path("large.pdf"))
-status = client.parse_jobs.get(job.job_id)
-```
-
-## Resources
-
-- **[REFERENCE.md](REFERENCE.md)** - Complete API reference with all parameters
-- **[scripts/](scripts/)** - Runnable examples for common tasks:
-  - `parse_document.py` - Parsing examples
-  - `extract_data.py` - Schema-based extraction
-  - `split_documents.py` - Document classification
-  - `visualize_chunks.py` - Visualization with bounding boxes
-  - `handle_tables.py` - Table and cell processing
-
-## Installation
-
-```bash
-pip install landingai-ade
-export VISION_AGENT_API_KEY="v2_..."
-```
-
-## Models
-
-- Parse: `dpt-2-latest`
-- Extract: `extract-latest`
-- Split: `split-latest`
-
-## Error Handling
-
-```python
-from landingai_ade.exceptions import RateLimitError, APITimeoutError
-
-try:
-    response = client.parse(document=Path("doc.pdf"))
-except RateLimitError:
-    time.sleep(10)  # Backoff and retry
-except APITimeoutError:
-    # Use parse_jobs for large files
-    job = client.parse_jobs.create(document=Path("doc.pdf"))
-```
+- [API Docs](https://docs.landing.ai/api-reference) | [Python SDK](https://docs.landing.ai/ade/ade-python) | [TypeScript SDK](https://docs.landing.ai/ade/ade-typescript)
+- [Python GitHub](https://github.com/landing-ai/ade-python) | [TypeScript GitHub](https://github.com/landing-ai/ade-typescript)
