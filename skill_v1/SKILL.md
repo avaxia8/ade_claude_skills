@@ -1,6 +1,6 @@
 ---
 name: landingai-ade
-description: Parse, extract, and analyze documents using LandingAI's ADE (Agentic Document Extraction). Use when the user wants to process PDFs, images, invoices, receipts, financial reports, contracts, or any document — converting them to structured data, extracting fields with schemas, classifying mixed document bundles, or working with table cell positions and visual grounding.
+description: Parse, split, extract, and analyze documents using LandingAI's ADE (Agentic Document Extraction). Supports PDFs, images (JPG/PNG/TIFF/WEBP/GIF/BMP/PSD and more), Word (DOC/DOCX), PowerPoint (PPT/PPTX), spreadsheets (XLSX/CSV), and OpenDocument formats (ODT/ODP). Use when the user wants to convert documents to structured markdown, extract fields with JSON schemas, split and classify mixed document bundles, or work with table cell positions and visual grounding. Handles invoices, receipts, financial reports, contracts, purchase orders, and any structured or semi-structured document.
 ---
 
 # LandingAI ADE (Agentic Document Extraction)
@@ -9,7 +9,7 @@ description: Parse, extract, and analyze documents using LandingAI's ADE (Agenti
 
 ADE follows a three-step pipeline:
 
-1. **Parse** — Convert documents (PDF/images) to markdown with visual grounding and bounding boxes
+1. **Parse** — Convert documents (PDFs, images, Word, PowerPoint, Excel/CSV) to markdown with visual grounding and bounding boxes
 2. **Split** *(optional)* — Classify pages in a mixed-document bundle by type (invoice, receipt, contract, etc.)
 3. **Extract** — Pull structured fields from markdown using a JSON schema
 
@@ -22,18 +22,18 @@ Parse once, then split/extract as many times as needed against the cached markdo
 | **Direct API** (curl) | Shell scripts, CI/CD, language-agnostic | API key only |
 | **Python SDK** | Data pipelines, Pydantic schemas, async batch jobs | `pip install landingai-ade` |
 | **TypeScript SDK** | Web apps, Node services, Zod validation | `npm install landingai-ade` |
-| **MCP Tools** | Quick prototypes, small docs (< 5 pages) | Built into Claude — **100x higher token cost** |
+| **MCP Tools** | Quick prototypes, small docs | **higher token cost** |
 
 All approaches use the same API key: `export VISION_AGENT_API_KEY="v2_..."`
 
 ## Key Features
 
-- **Document Parsing** — PDFs and images to structured markdown with chunk types (text, table, figure, formula, list)
+- **Document Parsing** — PDFs, images, Word/PowerPoint/ODT, and spreadsheets to structured markdown with chunk types (text, table, marginalia, figure, scan_code, logo, card and attestation)
 - **Visual Grounding** — Normalized 0-1 bounding boxes mapping every chunk to its source location
 - **Table Cell Positions** — Row/col/rowspan/colspan for every cell in detected tables
 - **Schema-based Extraction** — Define JSON schemas (or Pydantic/Zod models) to pull structured fields
-- **Document Classification** — Split mixed bundles by document type with custom identifiers
-- **Large File Support** — Async parse jobs API for files > 50MB
+- **Document Splitting and Classification** — Split mixed bundles by document type with custom identifiers
+- **Large File Support** — Async parse jobs API for files up to 1GB
 
 ## Reference Docs
 
@@ -43,7 +43,7 @@ All approaches use the same API key: `export VISION_AGENT_API_KEY="v2_..."`
 | **[API Reference](reference/API_REFERENCE.md)** | Write curl commands, shell scripts, or jq filters for document processing |
 | **[Python Reference](reference/PYTHON_REFERENCE.md)** | Use the Python SDK — Pydantic schemas, async patterns, exception handling, save_to |
 | **[TypeScript Reference](reference/TYPESCRIPT_REFERENCE.md)** | Use the TypeScript SDK — type definitions, Zod integration, parse jobs, error types |
-| **[MCP Tools Reference](reference/MCP_REFERENCE.md)** | Call ADE directly from Claude via MCP tools — jq_filter optimization is critical |
+| **[MCP Tools Reference](reference/MCP_REFERENCE.md)** | Call ADE directly via MCP tools — jq_filter optimization is critical |
 
 ## External Links
 

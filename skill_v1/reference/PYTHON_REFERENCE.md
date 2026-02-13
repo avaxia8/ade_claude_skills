@@ -74,6 +74,55 @@ for gid, grounding in response.grounding.items():
         print(f"Cell ({pos.row}, {pos.col}) span=({pos.rowspan}x{pos.colspan})")
 ```
 
+### Extract a Cell Value by Row and Column (PDF)
+```python
+import re
+
+response = client.parse(document=Path("doc.pdf"))
+
+# Get the first table chunk
+table = next(c for c in response.chunks if c.type == "table")
+
+# Parse HTML rows and cells into a (row, col) grid.
+# Table cell content lives in the chunk markdown as HTML.
+rows = re.findall(r'<tr[^>]*>(.*?)</tr>', table.markdown, re.DOTALL)
+grid = {}
+for r, row_html in enumerate(rows):
+    for c, m in enumerate(re.finditer(
+        r'<td[^>]*>(.*?)</td>', row_html, re.DOTALL
+    )):
+        grid[(r, c)] = re.sub(r'<[^>]+>', '', m.group(1)).strip()
+
+# Look up a value (zero-indexed row and column)
+row, col = 1, 0
+value = grid[(row, col)]
+print(f"Row {row}, Col {col}: {value}")
+```
+
+### Read a Spreadsheet Cell by Reference
+```python
+import re
+
+response = client.parse(document=Path("report.xlsx"))
+
+# Get the first table chunk
+table = next(c for c in response.chunks if c.type == "table")
+
+# Spreadsheet cell IDs are "{tab_name}-{cell_ref}" (e.g., "Sheet 1-B2").
+# grounding is null for spreadsheets, so parse IDs directly from HTML.
+cell_text = {}
+for m in re.finditer(
+    r'<td[^>]*\bid=["\']([^"\']+)["\'][^>]*>(.*?)</td>',
+    table.markdown,
+    re.DOTALL,
+):
+    cell_text[m.group(1)] = re.sub(r"<[^>]+>", "", m.group(2)).strip()
+
+# Look up by tab name and cell reference
+value = cell_text["Sheet 1-B2"]
+print(f"Sheet 1, cell B2: {value}")
+```
+
 ## 2. Extract API
 
 > See [Extract API Specification](API_SPEC.md#2-extract-api) for request parameters and response structure.

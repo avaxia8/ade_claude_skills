@@ -4,13 +4,13 @@ Complete API specification for LandingAI's Agentic Document Extraction (ADE).
 
 ## Overview
 
-ADE provides a REST API for document parsing, data extraction, and document classification. All SDKs and tools (Python, TypeScript, MCP) use this same underlying API.
+ADE provides a REST API for document parsing, splitting, data extraction, and large file parse jobs. All SDKs and tools (Python, TypeScript, MCP) use this same underlying API.
 
 ## Base Configuration
 
 | Region | Base URL |
 |--------|----------|
-| US (default) | `https://api.landing.ai/v1/ade` |
+| US (default) | `https://api.va.landing.ai/v1/ade` |
 | EU | `https://api.va.eu-west-1.landing.ai/v1/ade` |
 
 **Authentication**: All requests require `Authorization: Bearer $VISION_AGENT_API_KEY`
@@ -20,7 +20,7 @@ ADE provides a REST API for document parsing, data extraction, and document clas
 - [API Reference (curl)](API_REFERENCE.md) — Shell scripts, jq recipes, error handling
 - [Python SDK Reference](PYTHON_REFERENCE.md) — Pydantic schemas, async, exception handling
 - [TypeScript SDK Reference](TYPESCRIPT_REFERENCE.md) — Type definitions, Zod, async/await
-- [MCP Tools Reference](MCP_REFERENCE.md) — Claude direct integration (100x higher token cost)
+- [MCP Tools Reference](MCP_REFERENCE.md) — Direct integration (higher token cost)
 
 ## API Endpoints
 
@@ -28,13 +28,13 @@ ADE provides a REST API for document parsing, data extraction, and document clas
 
 **Endpoint**: `POST /parse`
 
-Converts documents (PDFs, images) to structured markdown with visual grounding.
+Converts documents to structured json with visual grounding.
 
 #### Request Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `document` | file | One required | Local file (PDF, PNG, JPG, etc.) |
+| `document` | file | One required | Local file — PDF, images (JPG/PNG/TIFF/WEBP/GIF/BMP/PSD + more), Word (DOC/DOCX/ODT), PowerPoint (PPT/PPTX/ODP), spreadsheets (XLSX/CSV) |
 | `document_url` | string | One required | Remote document URL |
 | `model` | string | No | Model version (default: `dpt-2-latest`) |
 | `split` | string | No | Split mode: `"page"` to split by pages |
@@ -47,7 +47,7 @@ Converts documents (PDFs, images) to structured markdown with visual grounding.
   "chunks": [                    // Array of content blocks
     {
       "id": "uuid",              // Unique identifier
-      "type": "text|table|figure|formula|list",
+      "type": "text, table, marginalia, figure, scan_code, logo, card and attestation", //Chunk type
       "markdown": "string",      // Chunk content
       "grounding": {             // Location in document
         "page": 0,               // Zero-indexed page number
@@ -61,8 +61,8 @@ Converts documents (PDFs, images) to structured markdown with visual grounding.
     }
   ],
   "grounding": {                 // Detailed location mapping
-    "chunk-uuid": {              // Chunk grounding (has "chunk" prefix)
-      "type": "chunkText|chunkTable|chunkFigure",
+    "chunk-id": {              // Chunk grounding (has "chunk" prefix)
+      "type": "chunkText|chunkTable|chunkFigure|chunkLogo|chunkCard|chunkAttestation| chunkScanCode|chunkForm|chunkMarginalia| chunkTitle|chunkPageHeader|chunkPageFooter| chunkPageNumber|chunkKeyValue|table|tableCell",
       "page": 0,
       "box": { /* BoundingBox */ }
     },
@@ -316,6 +316,47 @@ All coordinates are normalized to 0-1 range:
 }
 ```
 
+### Table Chunk Formats
+
+Table chunks render as HTML. The ID format and grounding availability differ by source document type.
+
+#### PDF / Image / Document Tables
+
+Element IDs use the format `{page_number}-{base62_sequential_number}` (page starts at 0, numbers increment per element within the page). If a page has multiple tables, numbering continues sequentially across all tables on that page. Cells may include `rowspan`/`colspan` attributes.
+
+The `grounding` object contains bounding boxes and `tableCell` position entries for every cell.
+
+```html
+<a id='chunk-uuid'></a>
+
+<table id="0-1">
+<tr><td id="0-2" colspan="2">Product Summary</td></tr>
+<tr><td id="0-3">Product</td><td id="0-4">Revenue</td></tr>
+<tr><td id="0-5">Hardware</td><td id="0-6">15,230</td></tr>
+</table>
+```
+
+#### Spreadsheet Tables (XLSX / CSV)
+
+Element IDs use the format `{tab_name}-{cell_reference}` (e.g., `Sheet 1-A1`). The table element itself uses `{tab_name}-{start_cell}:{end_cell}` (e.g., `Sheet 1-A1:B4`). Embedded images and charts become `figure` chunks.
+
+**`grounding` is `null`** for spreadsheet table chunks — cell positions are encoded in the IDs themselves.
+
+```html
+<a id='Sheet 1-A1:B4-chunk'></a>
+
+<table id='Sheet 1-A1:B4'>
+  <tr>
+    <td id='Sheet 1-A1'>Program</td>
+    <td id='Sheet 1-B1'>Interest Rate</td>
+  </tr>
+  <tr>
+    <td id='Sheet 1-A2'>15 Year Fixed-Rate Mortgage</td>
+    <td id='Sheet 1-B2'>0.05125</td>
+  </tr>
+</table>
+```
+
 ## Error Responses
 
 All errors follow this format:
@@ -351,6 +392,18 @@ All errors follow this format:
 | Parse | `dpt-2-latest` | Document parsing and OCR |
 | Extract | `extract-latest` | Schema-based extraction |
 | Split | `split-latest` | Document classification |
+
+## Supported File Types
+
+| Category | Formats | Notes |
+|----------|---------|-------|
+| **PDF** | PDF | Up to 100 pages; no password-protected files |
+| **Images** | JPEG, JPG, PNG, APNG, BMP, DCX, DDS, DIB, GD, GIF, ICNS, JP2, PCX, PPM, PSD, TGA, TIF, TIFF, WEBP | |
+| **Text Documents** | DOC, DOCX, ODT | Converted to PDF before parsing |
+| **Presentations** | ODP, PPT, PPTX | Converted to PDF before parsing |
+| **Spreadsheets** | CSV, XLSX | Up to 10 MB in Playground; no sheet/column/row limits |
+
+> **Note:** Word, PowerPoint, and OpenDocument files are converted to PDF server-side before parsing. The output is the same structured markdown as a direct PDF upload.
 
 ## Best Practices
 
